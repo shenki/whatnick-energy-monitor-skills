@@ -1,18 +1,23 @@
 ---
 name: whatnick-energy-monitor-elecrow-ordering
-description: Package verified bare PCB fabrication files and obtain Elecrow quotations using an authenticated browser and Playwright. Use for Gerber/drill uploads, material and finish selection, per-design quantities, quote/cart verification, uploaded-file hash checks, and safe handoff before checkout or payment. Distinguish PCB fabrication from assembly and preserve account privacy.
+description: Package verified PCB/PCBA fabrication files and manage Elecrow quotations using an authenticated browser and Playwright. Use for Gerber/BOM/CPL uploads, quote and service-order audits, duplicate detection, build-status tracking, uploaded-file hash checks, lifecycle-board handoff, and safe approval gates before checkout, payment, or production. Preserve account privacy.
 compatibility: Python with Playwright and an installed Chromium browser; KiCad CLI for fabrication validation/export.
 metadata:
   org: whatnick
   domain: pcb-manufacturing
 ---
 
-# Elecrow bare-PCB quotation and ordering
+# Elecrow PCB/PCBA quotation and production management
 
 Use the browser + Playwright for Elecrow fabrication submission, not email or
-an invented private API. The verified entry point is
+an invented private API. For bare PCB, the verified entry point is
 https://www.elecrow.com/pcb-manufacturing.html and the cart is
 https://www.elecrow.com/checkout/cart.
+
+For PCBA, distinguish a submitted RFQ/service order from a paid shop order and
+from a production release. A provisional quote with zero component cost is not
+ready for payment. A displayed status is evidence only at the time checked;
+record the check date.
 
 ## Authority and privacy
 
@@ -39,9 +44,12 @@ locally. Do not close the user's browser when disconnecting a short automation
 command. Stop the task browser after handoff if it is no longer needed.
 
 Do not commit profiles, cookies, credentials, raw account-page HTML, shipping
-addresses or file-download URLs containing access keys. Capture a cropped cart
-table rather than the account dashboard. Store only non-sensitive quote
-specifications, prices, filenames, hashes and supplier SKU/reference identifiers.
+addresses, personal names, raw chats, phone numbers, email addresses or
+file-download URLs containing access keys. Capture a cropped project/order row,
+not the account dashboard. Store only non-sensitive quote specifications,
+prices, filenames, hashes, dates, status, quantities, project numbers and
+supplier SKU/reference identifiers. Summarize supplier messages as technical
+requirements or unresolved decisions instead of preserving the conversation.
 
 ## Prepare fabrication evidence
 
@@ -69,6 +77,103 @@ Bare PCB only means no component procurement, assembly, BOM/CPL or stencil.
 Choose requested solder-mask colour per order; **purple is not a global default**.
 Choose finish for the function: flat exposed electrical contacts may require
 ENIG rather than uneven HASL. Ordinary ENIG is not hard-gold wear qualification.
+
+## Prepare PCBA evidence
+
+Before submitting an assembly RFQ:
+
+1. Pass the board's ERC/DRC and unconnected-item release gates.
+2. Export Gerbers/drills from the validated board revision.
+3. Generate BOM and CPL/position data from schematic/PCB sources, not a
+   hand-copied interactive BOM.
+4. Verify every fitted reference, MPN, quantity, package, side, rotation, and
+   coordinate unit. Legacy position files without units must be reconciled
+   against the PCB before upload.
+5. Exclude tooling holes, logos, test-only no-fit parts, net ties, and other
+   project-defined DNP items.
+6. Put substitutions, exact-MPN requirements, first-article photos, board
+   thickness, mask/silkscreen colours, finish, and functional-contact rules in
+   a committed manufacturing note and in the RFQ instructions.
+7. Record hashes for the exact Gerber, BOM, CPL, and instruction files.
+
+When several variants share a PCB, use one variant manifest that maps each
+supplier reference to its exact BOM, colour, thickness, and quantity. Do not
+infer the variant from a generic project name.
+
+## Audit quotations and service orders
+
+Set the service-order table to its largest practical page size before
+concluding an item is missing. Audit all statuses, including pending quotation,
+quoted, pending payment, production, completed, and canceled.
+
+- Identify jobs by supplier reference and exact uploaded BOM filename. Quoted
+  rows may insert a quote-download link before the BOM name, so visible text
+  parsing alone is unreliable.
+- Submission redirects can lag. Search the service-order table before retrying
+  an apparently failed submission; a retry can create a duplicate.
+- Treat same-board jobs with different quantities or revisions as distinct
+  until their uploaded artifacts are compared.
+- Never cancel a suspected duplicate without matching its files, quantity,
+  revision, status, and intended retained reference.
+- Record cancellations by non-sensitive supplier reference and reason only.
+
+For each final quote, download the quote workbook in the authenticated browser
+context and verify:
+
+- board, component, stencil, assembly, freight, tax, and total lines;
+- quantity and effective landed cost per board;
+- each BOM reference/MPN/quantity group against the submitted BOM;
+- substitutions and unavailable parts;
+- first-article or photo-approval conditions;
+- discrepancies between line sums, BOM footer totals, and quote summaries.
+
+Hash the downloaded workbook and store a PII-free summary. A price mismatch or
+unexplained substitution is a release hold, not a rounding detail to ignore.
+
+## Track production and lifecycle
+
+Map supplier state to the product lifecycle without overstating progress:
+
+| Elecrow evidence | Lifecycle state |
+| --- | --- |
+| RFQ submitted, component cost incomplete | Quote |
+| Final quote verified, decision unresolved | Quote |
+| Human approved quote, awaiting payment | Payment |
+| Paid shop order / supplier production started | Production |
+| Shipped or delivered, not yet inspected | Receive and QA |
+| Incoming inspection and functional test passed | Listed or Sustaining |
+| Canceled duplicate or obsolete build | Done with cancellation evidence |
+
+The lifecycle record may contain supplier reference, quantity, non-sensitive
+costs, status, check date, package hashes, and release holds. Do not put
+customer, account, delivery, payment, or supplier-person details on a public
+issue or project board.
+
+Use `references/audit-record.schema.json` for a portable PII-free audit record.
+Set `live_verified` only after checking the authenticated account; a Project
+board or prior export is not a substitute for current supplier state.
+
+After QA:
+
+1. Update local and partner stock separately.
+2. Reconcile the Tindie/Elecrow listing and price against landed cost.
+3. Enable advertising only when the public listing is purchasable and stock is
+   positive.
+4. Retain calibration, test, yield, and revision evidence for the next batch.
+
+## Prioritize the pipeline
+
+Use pull-based ordering rather than processing quotes in submission order.
+Prioritize:
+
+1. paid/in-production jobs needing a technical answer or incoming QA;
+2. payment-ready replenishment of proven, out-of-stock sellers;
+3. low-capital quotes for products with recent demand;
+4. named research pilots with explicit users and release evidence;
+5. speculative variants only after earlier batches validate demand.
+
+Hold or close duplicate, obsolete, unexplained-price, unvalidated, and
+single-unit quotes whose economics do not represent the intended batch.
 
 ## Proven browser workflow
 
